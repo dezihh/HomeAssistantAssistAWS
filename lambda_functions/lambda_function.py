@@ -68,6 +68,7 @@ home_assistant_kioskmode = str(os.environ.get('home_assistant_kioskmode', 'False
 ask_for_further_commands = str(os.environ.get('ask_for_further_commands', 'False')).lower()
 suppress_greeting = str(os.environ.get('suppress_greeting', 'False')).lower()
 enable_acknowledgment_sound = str(os.environ.get('enable_acknowledgment_sound', 'False')).lower()
+use_custom_answer_endpoint = str(os.environ.get('use_custom_answer_endpoint', 'False')).lower()
 
 # Helper: fetch text input via webhook
 def fetch_prompt_from_ha():
@@ -275,6 +276,10 @@ def process_conversation(query):
         logger.error("Please set 'home_assistant_url' AWS Lambda Functions environment variable.")
         return globals().get("alexa_speak_error")
     
+    # Route to custom pyscript answer endpoint if enabled
+    if use_custom_answer_endpoint == "true":
+        return process_custom_answer(query)
+    
     home_assistant_agent_id = os.environ.get("home_assistant_agent_id", None)
     home_assistant_language = os.environ.get("home_assistant_language", None)
         
@@ -368,6 +373,58 @@ def process_conversation(query):
     except Exception as e:
         logger.error(f"Error processing response: {str(e)}", exc_info=True)
         return globals().get("alexa_speak_error")
+
+# Calls the custom pyscript answer endpoint instead of the HA conversation API
+def process_custom_answer(query):
+    """
+    Sends the query to the pyscript.answer_question service endpoint and
+    returns the answer directly. SSML tags are preserved if present.
+    """
+    try:
+        headers = {
+            "Authorization": "Bearer {}".format(account_linking_token),
+            "Content-Type": "application/json",
+        }
+
+        # Strip optional device_id suffix added by room recognition from the query
+        clean_query = re.sub(r"\s*\.?\s*device_id:\s*\S+", "", query).strip()
+        data = {"question": replace_words(clean_query)}
+
+        ha_api_url = "{}/api/services/pyscript/answer_question?return_response".format(home_assistant_url)
+        logger.debug(f"HA custom answer url: {ha_api_url}")
+        logger.debug(f"HA custom answer data: {data}")
+
+        response = requests.post(ha_api_url, headers=headers, json=data)
+
+        logger.debug(f"HA custom answer response status: {response.status_code}")
+        logger.debug(f"HA custom answer response data: {response.text}")
+
+        if response.status_code != 200:
+            logger.error(f"Custom answer endpoint error: {response.status_code} {response.text}")
+            return globals().get("alexa_speak_error")
+
+        response_data = response.json()
+        answer = response_data.get("service_response", {}).get("answer")
+        if not answer:
+            logger.error(f"No answer in response: {response_data}")
+            return globals().get("alexa_speak_error")
+
+        # Simple SSML detection: response contains XML-like tags
+        is_ssml = bool(re.search(r"<[^>]+>", answer))
+        if is_ssml:
+            logger.debug("Returning SSML response from custom endpoint")
+            return answer
+        else:
+            logger.debug("Returning plain text response from custom endpoint with improvements")
+            return improve_response(answer)
+
+    except requests.exceptions.Timeout as te:
+        logger.error(f"Timeout when communicating with Home Assistant: {str(te)}", exc_info=True)
+        return globals().get("alexa_speak_timeout")
+    except Exception as e:
+        logger.error(f"Error processing response: {str(e)}", exc_info=True)
+        return globals().get("alexa_speak_error")
+
 
 # Extract speech from Home Assistant response, preferring SSML over plain text
 def extract_speech(speech_data):
