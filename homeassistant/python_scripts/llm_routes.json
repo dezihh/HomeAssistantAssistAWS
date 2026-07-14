@@ -1,0 +1,38 @@
+{
+  "hausstatus": {
+    "handler": "house_status"
+  },
+  "status des hauses": {
+    "handler": "house_status"
+  },
+  "wie ist der status": {
+    "handler": "house_status"
+  },
+  "benzinpreis": {
+    "handler": "fuel_price"
+  },
+  "tankstelle": {
+    "handler": "fuel_price"
+  },
+  "nordöl": {
+    "handler": "fuel_price"
+  },
+  "sprit": {
+    "handler": "fuel_price"
+  },
+  "super e10": {
+    "handler": "fuel_price"
+  },
+  "bmw netzladung an": {
+    "handler": "intent_script.bmw_netzladung_an"
+  },
+  "bmw netzladung aus": {
+    "handler": "intent_script.bmw_netzladung_aus"
+  },
+  "lade modus netz": {
+    "handler": "intent_script.bmw_netzladung_an"
+  },
+  "lade modus pv": {
+    "handler": "intent_script.bmw_netzladung_aus"
+  }
+}

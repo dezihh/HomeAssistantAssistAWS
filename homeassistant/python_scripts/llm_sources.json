@@ -1,0 +1,10 @@
+{
+  "helloworld": {
+    "keywords": [
+      "helloworld",
+      "meineseite"
+    ],
+    "source": "https://knx.ziegler-eu.de/helloworld.txt",
+    "preserve_format": true
+  }
+}
